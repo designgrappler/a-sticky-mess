@@ -9,14 +9,7 @@
     "figjam"
   ],
   "networkAccess": {
-    "allowedDomains": [
-      "https://api.anthropic.com",
-      "https://api.openai.com",
-      "https://generativelanguage.googleapis.com",
-      "https://api.mistral.ai",
-      "https://api.groq.com",
-      "http://localhost:11434"
-    ],
+    "allowedDomains": ["*"],
     "reasoning": "Calls user-configured LLM API endpoints to generate content placed on the board."
   }
 }
