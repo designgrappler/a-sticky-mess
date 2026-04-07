@@ -415,10 +415,11 @@
       </div>
 
       <div class="field">
-        <label>Model</label>
-        <input type="text" id="setup-model" placeholder="claude-sonnet-latest" />
-        <small>Examples: <code>claude-sonnet-latest</code>, <code>gpt-4o</code>, <code>gemini-2.0-flash</code>,
-          <code>mistral-large-latest</code>, <code>llama3.2</code></small>
+        <label>Model <a href="#" id="btn-refresh-models" style="font-size:11px;font-weight:400;margin-left:6px">↺ Refresh</a></label>
+        <select id="setup-model">
+          <option value="">— Enter API key then select preset —</option>
+        </select>
+        <small id="status-models"></small>
       </div>
 
       <hr class="divider" />
@@ -543,13 +544,13 @@
     let selectedTexts = [];
 
     const PRESETS = {
-      anthropic: { url: 'https://api.anthropic.com', model: 'claude-sonnet-latest', format: 'anthropic' },
-      openai: { url: 'https://api.openai.com', model: 'gpt-4o', format: 'openai' },
-      gemini: { url: 'https://generativelanguage.googleapis.com', model: 'gemini-2.0-flash', format: 'gemini' },
-      mistral: { url: 'https://api.mistral.ai', model: 'mistral-large-latest', format: 'openai' },
-      groq: { url: 'https://api.groq.com/openai', model: 'llama-3.3-70b-versatile', format: 'openai' },
-      ollama: { url: 'http://localhost:11434/v1', model: 'llama3.2', format: 'openai' },
-      custom: { url: '', model: '', format: 'anthropic' },
+      anthropic: { url: 'https://api.anthropic.com', format: 'anthropic' },
+      openai:    { url: 'https://api.openai.com', format: 'openai' },
+      gemini:    { url: 'https://generativelanguage.googleapis.com', format: 'gemini' },
+      mistral:   { url: 'https://api.mistral.ai', format: 'openai' },
+      groq:      { url: 'https://api.groq.com/openai', format: 'openai' },
+      ollama:    { url: 'http://localhost:11434', format: 'openai' },
+      custom:    { url: '', format: 'anthropic' },
     };
 
     // ── Messages from code.js ──────────────────────────────────────
@@ -588,14 +589,17 @@
       document.getElementById('screen-' + name).classList.add('active');
 
       if (name === 'setup' && settings) {
-        // Editing existing settings
+        // Editing existing settings — pre-populate the saved model then refresh the list
         document.getElementById('setup-title').textContent = 'Settings';
         document.getElementById('btn-cancel-settings').style.display = 'flex';
         document.getElementById('setup-url').value = settings.url || '';
         document.getElementById('setup-key').value = settings.key || '';
-        document.getElementById('setup-model').value = settings.model || '';
         document.getElementById('setup-format').value = settings.format || 'anthropic';
         setActivePreset(settings.preset || 'custom');
+        const select = document.getElementById('setup-model');
+        select.innerHTML = `<option value="${settings.model}">${settings.model}</option>`;
+        select.value = settings.model;
+        fetchModels();
       }
     }
 
@@ -605,10 +609,68 @@
         setActivePreset(chip.dataset.preset);
         const p = PRESETS[chip.dataset.preset];
         if (p.url) document.getElementById('setup-url').value = p.url;
-        if (p.model) document.getElementById('setup-model').value = p.model;
         document.getElementById('setup-format').value = p.format;
+        fetchModels();
       });
     });
+
+    document.getElementById('setup-key').addEventListener('blur', fetchModels);
+    document.getElementById('setup-format').addEventListener('change', fetchModels);
+    document.getElementById('btn-refresh-models').addEventListener('click', (e) => { e.preventDefault(); fetchModels(); });
+
+    async function fetchModels() {
+      const url = document.getElementById('setup-url').value.trim().replace(/\/$/, '');
+      const key = document.getElementById('setup-key').value.trim();
+      const format = document.getElementById('setup-format').value;
+      const statusEl = document.getElementById('status-models');
+      const select = document.getElementById('setup-model');
+
+      if (!url || !key) return;
+
+      statusEl.textContent = 'Loading models…';
+      statusEl.style.color = '#888';
+
+      let endpoint, headers;
+      if (format === 'anthropic') {
+        endpoint = `${url}/v1/models`;
+        headers = { 'x-api-key': key, 'anthropic-version': '2023-06-01' };
+      } else if (format === 'gemini') {
+        endpoint = `${url}/v1beta/models?key=${key}`;
+        headers = {};
+      } else {
+        endpoint = `${url}/v1/models`;
+        headers = { 'Authorization': `Bearer ${key}` };
+      }
+
+      try {
+        const res = await fetch(endpoint, { headers });
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const data = await res.json();
+
+        let models;
+        if (format === 'gemini') {
+          models = (data.models || []).map(m => m.name.replace('models/', '')).filter(Boolean);
+        } else {
+          models = (data.data || []).map(m => m.id).filter(Boolean);
+        }
+
+        const prev = select.value;
+        select.innerHTML = '<option value="">— Select a model —</option>';
+        models.forEach(id => {
+          const opt = document.createElement('option');
+          opt.value = id;
+          opt.textContent = id;
+          select.appendChild(opt);
+        });
+        if (prev && models.includes(prev)) select.value = prev;
+
+        statusEl.textContent = `${models.length} models available.`;
+        statusEl.style.color = '#4caf50';
+      } catch (err) {
+        statusEl.textContent = `Could not load models: ${err.message}`;
+        statusEl.style.color = '#e53935';
+      }
+    }
 
     function setActivePreset(name) {
       document.querySelectorAll('.preset-chip').forEach(c => c.classList.toggle('active', c.dataset.preset === name));
@@ -618,7 +680,7 @@
     document.getElementById('btn-save-settings').addEventListener('click', () => {
       const url = document.getElementById('setup-url').value.trim().replace(/\/$/, '');
       const key = document.getElementById('setup-key').value.trim();
-      const model = document.getElementById('setup-model').value.trim();
+      const model = document.getElementById('setup-model').value;
       const format = document.getElementById('setup-format').value;
       const preset = document.querySelector('.preset-chip.active')?.dataset.preset || 'custom';
 
@@ -701,7 +763,17 @@
         body = { model, max_tokens: 2048, messages: [{ role: 'user', content: prompt }] };
       }
 
-      const res = await fetch(endpoint, { method: 'POST', headers, body: JSON.stringify(body) });
+      const controller = new AbortController();
+      const timeout = setTimeout(() => controller.abort(), 60000);
+      let res;
+      try {
+        res = await fetch(endpoint, { method: 'POST', headers, body: JSON.stringify(body), signal: controller.signal });
+      } catch (e) {
+        if (e.name === 'AbortError') throw new Error('Request timed out after 60s — check your API endpoint.');
+        throw e;
+      } finally {
+        clearTimeout(timeout);
+      }
 
       if (!res.ok) {
         const err = await res.json().catch(() => ({}));
