@@ -1,11 +1,11 @@
-// NGP AI Assistant — Figma Plugin Sandbox
+// A Sticky Mess — Figma Plugin Sandbox
 // Communicates with ui.html via postMessage. All Figma API calls happen here.
 
-figma.showUI(__html__, { width: 420, height: 560, title: 'NGP AI Assistant' });
+figma.showUI(__html__, { width: 420, height: 560, title: 'A Sticky Mess' });
 
 // Load saved settings and send to UI on launch
 async function init() {
-  const settings = await figma.clientStorage.getAsync('ngp-settings');
+  const settings = await figma.clientStorage.getAsync('sticky-settings');
   figma.ui.postMessage({ type: 'init', settings: settings || null });
   sendSelection();
 }
@@ -29,7 +29,7 @@ function getSelectedStickyTexts() {
 figma.ui.onmessage = async (msg) => {
   try {
     if (msg.type === 'save-settings') {
-      await figma.clientStorage.setAsync('ngp-settings', msg.settings);
+      await figma.clientStorage.setAsync('sticky-settings', msg.settings);
       figma.ui.postMessage({ type: 'settings-saved' });
     } else if (msg.type === 'create-stickies') {
       await createStickies(msg.items, msg.color);
