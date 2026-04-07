@@ -579,7 +579,12 @@
           resetBtn(panelId);
         }
       } else if (msg.type === 'error') {
-        console.error(msg.message);
+        const active = document.querySelector('.panel.active');
+        if (active) {
+          const panelId = active.id.replace('panel-', '');
+          setStatus(panelId, 'error', msg.message);
+          resetBtn(panelId);
+        }
       }
     };
 
@@ -830,6 +835,7 @@ ${selectedTexts.join('\n\n')}`;
 
         const raw = await callLLM(prompt);
         const items = raw.split('\n').map(l => l.trim()).filter(l => l.startsWith('HMW'));
+        if (!items.length) throw new Error('No HMW statements found in response — try again.');
         parent.postMessage({ pluginMessage: { type: 'create-stickies', items, color: selectedColor('hmw-colors') } }, '*');
       } catch (err) {
         setStatus('hmw', 'error', err.message);
@@ -882,6 +888,7 @@ ${md}`;
 
         const raw = await callLLM(prompt);
         const items = raw.split('\n').map(l => l.replace(/^[-•*]\s*/, '').trim()).filter(Boolean);
+        if (!items.length) throw new Error('No items found in response — try again.');
         parent.postMessage({ pluginMessage: { type: 'create-stickies', items, color: selectedColor('md-colors') } }, '*');
       } catch (err) {
         setStatus('markdown', 'error', err.message);

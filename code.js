@@ -46,6 +46,8 @@ figma.ui.onmessage = async (msg) => {
 async function createStickies(items, colorHex) {
   if (!items || items.length === 0) return;
 
+  await figma.loadFontAsync({ family: 'Inter', style: 'Medium' });
+
   const COLS = 4;
   const STICKY_SIZE = 200;
   const GAP = 20;
