@@ -22,9 +22,9 @@ function sendSelection() {
 function getSelectedStickyTexts() {
   return figma.currentPage.selection
     .map(n => {
-      if (n.type === 'TEXT') return n.characters?.trim();
+      if (n.type === 'TEXT') return n.characters ? n.characters.trim() : null;
       if (n.type === 'STICKY' || n.type === 'SHAPE_WITH_TEXT' || n.type === 'CONNECTOR')
-        return n.text?.characters?.trim();
+        return (n.text && n.text.characters) ? n.text.characters.trim() : null;
       return null;
     })
     .filter(Boolean);
