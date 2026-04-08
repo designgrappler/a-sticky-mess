@@ -483,7 +483,7 @@
       <!-- Summarise -->
       <div class="panel" id="panel-summarise">
         <div id="sum-badge" class="selection-badge empty">No stickies selected</div>
-        <small>Select stickies on the board — Claude will summarise them as a text block placed on the board.</small>
+        <textarea id="sum-input" placeholder="Paste any text here to summarise — or just select stickies above." rows="5" style="margin-top:8px"></textarea>
         <button class="btn btn-primary" id="btn-summarise" disabled>Generate summary</button>
         <div class="status" id="status-summarise"></div>
       </div>
@@ -727,15 +727,23 @@
     // ── Selection badges ───────────────────────────────────────────
     function updateSelectionBadges() {
       const count = selectedTexts.length;
-      const label = count === 0 ? 'No stickies selected' : `${count} stick${count === 1 ? 'y' : 'ies'} selected`;
+      const label = count === 0 ? 'No items selected' : `${count} item${count === 1 ? '' : 's'} selected`;
       ['hmw-badge', 'sum-badge'].forEach(id => {
         const el = document.getElementById(id);
         el.textContent = label;
         el.className = 'selection-badge' + (count === 0 ? ' empty' : '');
       });
       document.getElementById('btn-hmw').disabled = count === 0;
-      document.getElementById('btn-summarise').disabled = count === 0;
+      updateSummariseButton();
     }
+
+    function updateSummariseButton() {
+      const hasStickies = selectedTexts.length > 0;
+      const hasText = document.getElementById('sum-input').value.trim().length > 0;
+      document.getElementById('btn-summarise').disabled = !hasStickies && !hasText;
+    }
+
+    document.getElementById('sum-input').addEventListener('input', updateSummariseButton);
 
     // ── LLM API call ───────────────────────────────────────────────
     async function callLLM(prompt) {
@@ -848,7 +856,12 @@ ${selectedTexts.join('\n\n')}`;
       setLoading('btn-summarise', true);
       setStatus('summarise', 'info', 'Generating summary…');
       try {
-        const prompt = `Summarise the following sticky notes from a design sprint expert talk.
+        const parts = [];
+        if (selectedTexts.length) parts.push(selectedTexts.join('\n\n'));
+        const pasted = document.getElementById('sum-input').value.trim();
+        if (pasted) parts.push(pasted);
+
+        const prompt = `Summarise the following content.
 
 Write a clear, structured summary with:
 - A 2–3 sentence overview paragraph
@@ -857,8 +870,8 @@ Write a clear, structured summary with:
 
 Keep it concise and actionable. Plain text only — no markdown formatting.
 
-Sticky notes:
-${selectedTexts.join('\n\n')}`;
+Content:
+${parts.join('\n\n---\n\n')}`;
 
         const content = await callLLM(prompt);
         parent.postMessage({ pluginMessage: { type: 'create-text', content } }, '*');
